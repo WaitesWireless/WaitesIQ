@@ -2,9 +2,14 @@ import cv2
 import time
 from modeling.inference import process_image
 from modeling.database import Database
+import argparse
 
 def main():
-    db = Database("C:/Users/jake.kasper_waites/Work/Repos/WaitesIQ/data")
+    parser = argparse.ArgumentParser(description="WaitesIQ Camera Inference")
+    parser.add_argument("--db_path", type=str, required=True,
+                        help="Path to the database directory")
+    args = parser.parse_args()
+    db = Database(args.db_path)
 
     # Check if camera opened successfully
     cap = cv2.VideoCapture(1)

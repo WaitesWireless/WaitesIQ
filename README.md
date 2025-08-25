@@ -10,5 +10,5 @@ pip install -r requirements.txt
 ```
 to install dependencies. The project can be run using 
 ```
-python main.py
+python main.py --db_path=\path\to\database\containing\images
 ```
