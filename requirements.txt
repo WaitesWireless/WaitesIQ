@@ -1,0 +1,6 @@
+opencv-python
+torch
+faiss-cpu
+pillow
+numpy
+facenet-pytorch
