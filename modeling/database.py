@@ -42,7 +42,7 @@ class Database:
                         person_embeddings.append(embeddings)
             if len(person_embeddings) > 0:
                 embedding = torch.stack(person_embeddings).mean(dim=0).detach().numpy()
-                self.waites_vector_table[len(self.waites_vector_table)] = (name, random.randint(0, 200))
+                self.waites_vector_table[len(self.waites_vector_table)] = (name, random.randint(160, 190))
                 self.waites_vector_index.add(embedding.reshape(1, -1) / np.linalg.norm(embedding))
     
     def compute_star_wars_embeddings(self) -> dict[str, torch.Tensor]:
@@ -62,7 +62,19 @@ class Database:
                     embeddings = embeddings.detach().numpy()
                     self.starwars_vector_table[len(self.starwars_vector_table)] = (character[:-4], random.randint(0, 20))
                     self.starwars_vector_index.add(embeddings.reshape(1, -1) / np.linalg.norm(embeddings))
-                    
+
+
+    @staticmethod
+    def _get_uknown_iq() -> int:
+        special_seeds = [5, 25, 50, 55, 75]
+        unfortunate_seeds = [13]
+        seed = random.randint(0, 100)
+        if seed in special_seeds:
+            return random.randint(140, 155)
+        elif seed in unfortunate_seeds:
+            return random.randint(20, 40)
+        else:
+            return random.randint(70, 105)
 
     def add_unknown(self, embedding: torch.Tensor) -> tuple[str, int]:
         """
@@ -75,7 +87,7 @@ class Database:
             return self.unknown_vector_table[I[0][0]]
         else:
             name = f"Unknown_{len(self.unknown_vector_table)}"
-            self.unknown_vector_table[len(self.unknown_vector_table)] = (name, random.randint(0, 20))
+            self.unknown_vector_table[len(self.unknown_vector_table)] = (name, self._get_uknown_iq())
             self.unknown_vector_index.add(embedding.reshape(1, -1))
             return self.unknown_vector_table[len(self.unknown_vector_table) - 1]
 
