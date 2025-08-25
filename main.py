@@ -24,6 +24,12 @@ def main():
 
         if boxes is not None:
             for box, embedding in zip(boxes, embeddings):
+
+                area = (box[2]-box[0]) * (box[3]-box[1])
+                # too far away, don't do anything with it
+                if area < 1000:
+                    continue
+
                 # Draw bounding box on the frame
                 cv2.rectangle(frame, 
                               (int(box[0]), int(box[1])), 
@@ -31,16 +37,17 @@ def main():
                               (255, 0, 0), 2)
                 
                 name, iq = db.search_waites(embedding)
-
                 if name is None:
-                    name = db.search_star_wars(embedding)
-                    text = name
-                else:
-                    text = f"{name}: {iq}"
+                    # name, iq = db.search_star_wars(embedding)
+                    name, iq = db.add_unknown(embedding)
 
+                lines = [f"Name: {name.replace('_', ' ').title()}", f"IQ: {iq}"]
                 text_x = int(box[0])
-                text_y = int(box[3]) + 30  # 30 pixels below the bottom of the box
-                cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                text_y = int(box[3]) + 30  # Starting y position
+
+                for i, line in enumerate(lines):
+                    y = text_y + i * 30  # 30 pixels between lines
+                    cv2.putText(frame, line, (text_x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         # Display the resulting frame
         cv2.imshow('Camera Feed', frame)

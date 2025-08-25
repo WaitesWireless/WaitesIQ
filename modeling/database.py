@@ -4,18 +4,24 @@ import numpy as np
 from PIL import Image
 import os
 import random
+import faiss
 
 class Database:
     def __init__(self, db_path):
         self.waites_path = os.path.join(db_path, "waites")
         self.star_wars_path = os.path.join(db_path, "star_wars")
+
+        self.waites_vector_index = faiss.IndexFlatL2(512)  # Assuming embeddings are of size 512
+        self.waites_vector_table = {}
+
+        self.starwars_vector_index = faiss.IndexFlatL2(512)  # Assuming embeddings are of size 512
+        self.starwars_vector_table = {}
+
+        self.unknown_vector_index = faiss.IndexFlatL2(512)  # Assuming embeddings are of size 512
+        self.unknown_vector_table = {}
+
         self.compute_waites_embeddings()
         self.compute_star_wars_embeddings()
-        for person, (embedding, iq) in self.waites_embeddings.items():
-            print(f"Computed embedding for {person} with shape {embedding.shape}")
-
-        for character, embedding in self.star_wars_embeddings.items():
-            print(f"Computed embedding for {character} with shape {embedding.shape}")
 
     def compute_waites_embeddings(self) -> dict[str, torch.Tensor]:
         """
@@ -35,7 +41,9 @@ class Database:
                     if boxes is not None and embeddings is not None:
                         person_embeddings.append(embeddings)
             if len(person_embeddings) > 0:
-                self.waites_embeddings[name] = (torch.stack(person_embeddings).mean(dim=0), random.randint(0, 200))
+                embedding = torch.stack(person_embeddings).mean(dim=0).detach().numpy()
+                self.waites_vector_table[len(self.waites_vector_table)] = (name, random.randint(0, 200))
+                self.waites_vector_index.add(embedding.reshape(1, -1) / np.linalg.norm(embedding))
     
     def compute_star_wars_embeddings(self) -> dict[str, torch.Tensor]:
         """
@@ -51,36 +59,50 @@ class Database:
                 img_tensor = torch.from_numpy(np.array(img)).permute(2, 0, 1).float() / 255.0
                 embeddings = get_embeddings(img_tensor.unsqueeze(0))
                 if embeddings is not None:
-                    self.star_wars_embeddings[character[:-4]] = embeddings
-    
-    def compare_embedding(self, embedding1, embedding2, threshold=0.6):
-        """
-        Compare the given embedding with the stored embeddings.
-        Returns True if the embedding matches any of the stored embeddings above the threshold.
-        """
-        return torch.cosine_similarity(embedding1, embedding2).item() > threshold
+                    embeddings = embeddings.detach().numpy()
+                    self.starwars_vector_table[len(self.starwars_vector_table)] = (character[:-4], random.randint(0, 20))
+                    self.starwars_vector_index.add(embeddings.reshape(1, -1) / np.linalg.norm(embeddings))
+                    
 
-    def search_waites(self, embedding) -> tuple[str, int]:
+    def add_unknown(self, embedding: torch.Tensor) -> tuple[str, int]:
+        """
+        Add an unknown face embedding to the database.
+        """
+        embedding = embedding.detach().numpy()
+        embedding = embedding / np.linalg.norm(embedding)
+        D, I = self.unknown_vector_index.search(embedding.reshape(1, -1), k=1)
+        if D[0][0] < 0.9:
+            return self.unknown_vector_table[I[0][0]]
+        else:
+            name = f"Unknown_{len(self.unknown_vector_table)}"
+            self.unknown_vector_table[len(self.unknown_vector_table)] = (name, random.randint(0, 20))
+            self.unknown_vector_index.add(embedding.reshape(1, -1))
+            return self.unknown_vector_table[len(self.unknown_vector_table) - 1]
+
+    def search_waites(self, embedding: torch.Tensor) -> tuple[str, int]:
         """
         Search for Waites IQ records in the database.
         Returns a list of records that match the threshold.
         """
-        for person, (person_embedding, person_iq) in self.waites_embeddings.items():
-            if self.compare_embedding(embedding, person_embedding):
-                return person, person_iq
-        return None, None
-    
-    def search_star_wars(self, embedding) -> str:
+        e = np.expand_dims(embedding.detach().numpy(), axis=0)
+        D, I = self.waites_vector_index.search(e / np.linalg.norm(e), k=1)
+        distance = D[0][0]
+        index = I[0][0]
+        if distance < 1.1:
+            return self.waites_vector_table[index]
+        else:
+            return None, None
+
+    def search_star_wars(self, embedding: torch.Tensor) -> str:
         """
         Search for Star Wars characters in the database.
         Returns a list of characters that match the threshold.
         """
-        sims = [
-            (character, torch.nn.functional.cosine_similarity(embedding, char_embedding).item())
-            for character, char_embedding in self.star_wars_embeddings.items()
-        ]
-        max_similarity = max(sims, key=lambda x: x[1])
-        return max_similarity[0] 
+        e = np.expand_dims(embedding.detach().numpy(), axis=0)
+        _, I = self.starwars_vector_index.search(e / np.linalg.norm(e), k=1)
+        index = I[0][0]
+        return self.starwars_vector_table[index]
+
 
 if __name__ == "__main__":
     db = Database("C:/Users/jake.kasper_waites/Work/Repos/WaitesIQ/data")

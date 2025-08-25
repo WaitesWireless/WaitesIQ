@@ -23,7 +23,7 @@ def process_image(image):
     else:
         return None, None
 
-def get_embeddings(face):
+def get_embeddings(face) -> torch.Tensor:
     """
     Get embeddings for a detected face using InceptionResnetV1.
     
