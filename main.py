@@ -1,20 +1,40 @@
+import sys
 import cv2
 import time
 from modeling.inference import process_image
 from modeling.database import Database
 import argparse
 
+def detect_camera_sources(max_sources=10):
+    """Detect available camera indices."""
+    available = []
+    for idx in range(max_sources):
+        cap = cv2.VideoCapture(idx)
+        if cap.isOpened():
+            available.append(idx)
+            cap.release()
+    return available
+
 def main():
     parser = argparse.ArgumentParser(description="WaitesIQ Camera Inference")
-    parser.add_argument("--db_path", type=str, required=True,
-                        help="Path to the database directory")
+    parser.add_argument("--db_path", type=str, required=True, help="Path to the database directory")
+    parser.add_argument("--camera", type=int, default=1, help="Camera index")
     args = parser.parse_args()
     db = Database(args.db_path)
 
+    camera_index = args.camera
+
+    # Detect and print available cameras
+    cameras = detect_camera_sources()
+    if camera_index not in cameras:
+        print(f"Warning: Camera index {camera_index} is not available.")
+        camera_index = cameras[0] if cameras else None
+    print(f"Available camera indices: {cameras}")
+
     # Check if camera opened successfully
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
-        print("Error: Could not open camera.")
+        print(f"Error: Could not open camera at index {args.camera_index}.")
         return
 
     print("Press 'q' to quit. Press 'space' to save frame as PNG.")
@@ -71,4 +91,7 @@ def main():
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt as e:
+        sys.exit(0)
