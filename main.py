@@ -44,7 +44,10 @@ def main():
         if not ret:
             print("Failed to grab frame.")
             break
-            
+
+        # Flip the frame horizontally for mirror effect
+        frame = cv2.flip(frame, 1)
+
         boxes, embeddings = process_image(frame)
 
         if boxes is not None:
